@@ -1,16 +1,19 @@
 #!/usr/bin/env bash
 #
-# simple_monitor.sh
 # Logs system performance using sar + disk space (df -h) + top processes
 #
 
 # === Configuration ===
-LOG_FILE="/var/log/simple_monitor.log"  # change to .the correct path if you prefer local file
-SAMPLE_INTERVAL=5                       # seconds between samples
-DURATION=60                             # total run time in seconds
-TOP_PROCESSES=5                         # how many top CPU/MEM processes to show
-SAR_SAMPLE_SECS=1                       # seconds each sar snapshot should run
+LOG_DIR="/var/log"                    # or use "./logs" if you prefer local directory
+SAMPLE_INTERVAL=5                     # seconds between samples
+DURATION=60                           # total run time in seconds
+TOP_PROCESSES=5                       # how many top CPU/MEM processes to show
+SAR_SAMPLE_SECS=1                     # seconds each sar snapshot should run
 # =====================
+
+# create timestamped log filename
+TIMESTAMP=$(date '+%Y-%m-%d_%H-%M-%S')
+LOG_FILE="${LOG_DIR}/simple_monitor_${TIMESTAMP}.log"
 
 HOSTNAME=$(hostname)
 START_TIME=$(date '+%Y-%m-%d %H:%M:%S')
@@ -88,8 +91,8 @@ append_top_processes() {
 # --- Main Loop ---
 
 for ((i=1; i<=ITERATIONS; i++)); do
-  TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
-  echo -e "\n--- Sample $i @ $TIMESTAMP ---" >> "$LOG_FILE"
+  SAMPLE_TIME=$(date '+%Y-%m-%d %H:%M:%S')
+  echo -e "\n--- Sample $i @ $SAMPLE_TIME ---" >> "$LOG_FILE"
 
   append_sar
   append_disk_space
