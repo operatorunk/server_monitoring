@@ -1,0 +1,133 @@
+Incident Post-Mortem – Temporary Host Unavailability
+
+Summary
+
+The server experienced a period of temporary unavailability (“unreachable”) while processing files.
+The host did not crash, did not reboot, and no kernel panic occurred.
+The issue was caused by resource saturation triggered by multiple concurrent processes processing the same file on a CIFS filesystem.
+
+The system recovered automatically once resource pressure was reduced.
+
+What Happened
+
+Files were made available on a CIFS network filesystem.
+
+A processing mechanism detected the files and launched multiple instances of the same processing application.
+
+The same file was processed concurrently by up to 15 independent processes, without any locking or exclusivity control.
+
+Each process accessed the file directly from the CIFS mount.
+The application uses memory-mapped file access (mmap()), either directly or via a native library.
+
+Due to concurrent access and filesystem latency, the kernel reported incomplete read-ahead operations:
+
+CIFS: __readahead_batch() returned 893/1024
+
+
+Some processes attempted to access memory pages that could not be resolved, resulting in:
+
+Bus error (SIGBUS)
+
+
+These errors terminated individual processes.
+
+The high level of concurrency caused extreme pressure on:
+
+Memory
+
+CPU scheduling
+
+I/O
+
+Network (CIFS)
+
+During this saturation period, the operating system became temporarily unresponsive:
+
+SSH connections timed out
+
+Monitoring marked the host as unreachable
+
+The kernel did not panic and the system did not reboot.
+Once several processes terminated and load decreased, the host recovered automatically.
+
+Impact
+
+Temporary loss of connectivity to the server
+
+Processing failures for some files (bus error)
+
+Monitoring alerts due to host unreachability
+
+No data corruption confirmed
+
+No reboot or permanent service outage
+
+What Did Not Happen
+
+No kernel panic
+
+No system reboot
+
+No hardware failure
+
+No filesystem remount as read-only
+
+No OOM killer termination of the host
+
+Root Cause
+
+Multiple independent processes concurrently processed the same file directly from a CIFS filesystem, without locking or concurrency limits.
+
+This design caused:
+
+Concurrent mmap() access to a network filesystem
+
+Incomplete read-ahead responses from CIFS
+
+SIGBUS errors in user-space processes
+
+Extreme resource contention leading to temporary host unresponsiveness
+
+Contributing Factors
+
+Lack of file-level locking (no “one process per file” guarantee)
+
+Processing files directly from a network filesystem
+
+High concurrency (15 parallel processes on the same file)
+
+Memory-mapped file access on CIFS
+
+No global concurrency limit
+
+Resolution and Recovery
+
+The system recovered automatically once process failures reduced load
+
+No manual reboot was required
+
+Services resumed normal operation after resource pressure subsided
+
+Preventive Measures / Recommendations
+
+To prevent recurrence:
+
+Enforce file-level locking
+Ensure that only one process can process a given file at any time.
+
+Copy files to local storage before processing
+Avoid processing files directly from CIFS.
+
+Process only completed files
+Use atomic rename (.tmp → final name) from the producer side.
+
+Limit processing concurrency
+Restrict the number of parallel processing instances.
+
+Add monitoring/alerting for abnormal process instance counts.
+
+Conclusion
+
+This incident was caused by a design issue in file processing concurrency, not by an operating system failure.
+The combination of CIFS, concurrent access, and memory-mapped file usage led to resource saturation and temporary unavailability.
+The issue is fully preventable with proper locking, concurrency control, and local file handling.
