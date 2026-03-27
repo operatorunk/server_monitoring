@@ -1,0 +1,136 @@
+Log Monitoring & Alerting System
+Objetivo
+
+Sistema automático para:
+
+Monitorizar logs
+Detectar errores (ERROR)
+Enviar alertas por email (y Teams vía email)
+Ejecutarse automáticamente tras generación de logs
+Arquitectura
+Logs → Python Script → Postfix (localhost) → SMTP relay → Email / Teams
+Componentes
+Python script (log_monitor.py)
+Postfix (MTA local)
+systemd (service + timer)
+Logs del sistema / aplicación
+Script Python
+Funcionalidad
+Lee logs definidos
+Detecta palabras clave (ERROR)
+Controla offset + inode (soporte rotación)
+Envía email
+Configuración clave
+LOG_FILES = [
+    "/ruta/log/mainlog.log",
+]
+
+STATE_FILE = "/var/tmp/log_monitor_state"
+
+SMTP_SERVER = "127.0.0.1"
+SMTP_PORT = 25
+
+EMAIL_FROM = "email@company.com"
+
+EMAIL_TO = [
+    "usuario@company.com",
+    "canal-teams@company.com"
+]
+
+SEARCH_TERMS = ["ERROR"]
+
+MAX_LINES_PER_LOG = 20
+Gestión de rotación de logs
+Escenario real:
+mainlog.log → renombrado a mainlog.logYYYYMMDD
+Nuevo mainlog.log creado
+Solución implementada:
+Guardar inode + offset
+Detectar cambio de fichero
+if saved_inode != current_inode:
+    last_offset = 0
+
+Automatización con systemd
+Service
+# /etc/systemd/system/log-monitor.service
+
+[Unit]
+Description=Log Monitor Script
+After=network.target postfix.service
+Requires=postfix.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /home/USER/log_monitor/log_monitor.py
+
+[Install]
+WantedBy=multi-user.target
+Timer
+
+Ejecuta después de generación de logs:
+
+# /etc/systemd/system/log-monitor.timer
+
+[Unit]
+Description=Run log monitor after log generation
+
+[Timer]
+OnCalendar=*-*-* 00,07,13,20:05:00
+Persistent=true
+Unit=log-monitor.service
+
+[Install]
+WantedBy=timers.target
+
+
+Activación
+sudo systemctl daemon-reload
+sudo systemctl enable --now log-monitor.timer
+
+Verificación
+sudo systemctl list-timers | grep log-monitor
+
+Testing
+Ejecutar manualmente
+sudo systemctl start log-monitor.service
+Generar error
+echo "[ERROR] test" >> /ruta/log.log
+Ver logs
+sudo journalctl -u log-monitor.service -n 50 --no-pager
+sudo journalctl -u postfix -n 50 --no-pager
+Gestión de cola de correo
+mailq
+sudo postqueue -f
+sudo postsuper -d ALL
+Formato de alertas
+
+Salida:
+
+=== FILE: /path/log ===
+ERROR something failed
+ERROR another issue
+
+
+Mejoras futuras
+Rate limiting (evitar spam)
+Clasificación de severidad (ERROR/WARN)
+Dashboard centralizado
+Multi-servidor
+Integración SIEM
+
+
+Estado final
+
+✔ Monitorización automática
+✔ Soporte rotación logs
+✔ Envío email funcional
+✔ Integración Teams
+✔ Ejecución programada
+
+Conclusión
+
+Sistema ligero, robusto y sin dependencias externas (CloudWatch, etc.), totalmente basado en:
+Linux
+Python
+Postfix
+systemd
