@@ -194,8 +194,9 @@ def main():
         matches = find_errors(lines)
 
         if matches:
-            alerts.append(f"\n--- {log_file} ---\n")
-            alerts.extend(matches[-MAX_LINES_PER_LOG:])
+            alerts.append(f"\n=== FILE: {log_file} ===\n")
+            for line in matches[-MAX_LINES_PER_LOG:]:
+                alerts.append(f"{line.rstrip()}\n")
 
         state[log_file] = {
             "inode": current_inode,
