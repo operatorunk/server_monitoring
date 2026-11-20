@@ -1,11 +1,21 @@
 locals {
-  ec2_monitor_instance_id = "i-xxxxxxxxxxxxxxxxx"
+  ec2_monitor_instances = {
+    server01 = "i-11111111111111111"
+    # server02 = "i-22222222222222222"
+    # server03 = "i-33333333333333333"
+  }
 }
 
-# CPU > 85% durante 10 minutos
+# ============================================================
+# 1. CPU UTILIZATION > 85% FOR 10 MINUTES
+# ============================================================
+
 resource "aws_cloudwatch_metric_alarm" "ec2_cpu_high" {
-  alarm_name          = "UAT-EC2-High-CPU"
+  for_each = local.ec2_monitor_instances
+
+  alarm_name          = "UAT-${each.key}-High-CPU"
   alarm_description   = "CPU usage above 85% for 10 minutes"
+
   namespace           = "AWS/EC2"
   metric_name         = "CPUUtilization"
   statistic           = "Average"
@@ -16,17 +26,23 @@ resource "aws_cloudwatch_metric_alarm" "ec2_cpu_high" {
   treat_missing_data  = "missing"
 
   dimensions = {
-    InstanceId = local.ec2_monitor_instance_id
+    InstanceId = each.value
   }
 
   alarm_actions = [aws_sns_topic.lambda_alerts.arn]
   ok_actions    = [aws_sns_topic.lambda_alerts.arn]
 }
 
-# Memoria > 85% durante 10 minutos
+# ============================================================
+# 2. MEMORY UTILIZATION > 85% FOR 10 MINUTES
+# ============================================================
+
 resource "aws_cloudwatch_metric_alarm" "ec2_memory_high" {
-  alarm_name          = "UAT-EC2-High-Memory"
+  for_each = local.ec2_monitor_instances
+
+  alarm_name          = "UAT-${each.key}-High-Memory"
   alarm_description   = "Memory usage above 85% for 10 minutes"
+
   namespace           = "CWAgent"
   metric_name         = "mem_used_percent"
   statistic           = "Average"
@@ -37,17 +53,23 @@ resource "aws_cloudwatch_metric_alarm" "ec2_memory_high" {
   treat_missing_data  = "missing"
 
   dimensions = {
-    InstanceId = local.ec2_monitor_instance_id
+    InstanceId = each.value
   }
 
   alarm_actions = [aws_sns_topic.lambda_alerts.arn]
   ok_actions    = [aws_sns_topic.lambda_alerts.arn]
 }
 
-# Disco > 85% durante 10 minutos
+# ============================================================
+# 3. DISK UTILIZATION > 85% FOR 10 MINUTES
+# ============================================================
+
 resource "aws_cloudwatch_metric_alarm" "ec2_disk_high" {
-  alarm_name          = "UAT-EC2-High-Disk"
+  for_each = local.ec2_monitor_instances
+
+  alarm_name          = "UAT-${each.key}-High-Disk"
   alarm_description   = "Disk usage above 85% for 10 minutes"
+
   namespace           = "CWAgent"
   metric_name         = "disk_used_percent"
   statistic           = "Average"
@@ -58,17 +80,23 @@ resource "aws_cloudwatch_metric_alarm" "ec2_disk_high" {
   treat_missing_data  = "missing"
 
   dimensions = {
-    InstanceId = local.ec2_monitor_instance_id
+    InstanceId = each.value
   }
 
   alarm_actions = [aws_sns_topic.lambda_alerts.arn]
   ok_actions    = [aws_sns_topic.lambda_alerts.arn]
 }
 
-# Fallo de estado de EC2
+# ============================================================
+# 4. EC2 STATUS CHECK FAILED
+# ============================================================
+
 resource "aws_cloudwatch_metric_alarm" "ec2_status_failed" {
-  alarm_name          = "UAT-EC2-Status-Check-Failed"
+  for_each = local.ec2_monitor_instances
+
+  alarm_name          = "UAT-${each.key}-Status-Check-Failed"
   alarm_description   = "EC2 instance or system status check failed"
+
   namespace           = "AWS/EC2"
   metric_name         = "StatusCheckFailed"
   statistic           = "Maximum"
@@ -79,9 +107,20 @@ resource "aws_cloudwatch_metric_alarm" "ec2_status_failed" {
   treat_missing_data  = "missing"
 
   dimensions = {
-    InstanceId = local.ec2_monitor_instance_id
+    InstanceId = each.value
   }
 
   alarm_actions = [aws_sns_topic.lambda_alerts.arn]
   ok_actions    = [aws_sns_topic.lambda_alerts.arn]
+}
+
+
+Cómo añadir más instancias
+Solo tienes que modificar esta sección:
+locals {
+  ec2_monitor_instances = {
+    server01 = "i-11111111111111111"
+    server02 = "i-22222222222222222"
+    server03 = "i-33333333333333333"
+  }
 }
