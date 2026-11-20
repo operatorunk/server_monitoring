@@ -113,14 +113,3 @@ resource "aws_cloudwatch_metric_alarm" "ec2_status_failed" {
   alarm_actions = [aws_sns_topic.lambda_alerts.arn]
   ok_actions    = [aws_sns_topic.lambda_alerts.arn]
 }
-
-
-Cómo añadir más instancias
-Solo tienes que modificar esta sección:
-locals {
-  ec2_monitor_instances = {
-    server01 = "i-11111111111111111"
-    server02 = "i-22222222222222222"
-    server03 = "i-33333333333333333"
-  }
-}
