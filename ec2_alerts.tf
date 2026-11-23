@@ -227,8 +227,10 @@ resource "aws_cloudwatch_metric_alarm" "ec2_status_failed" {
 # ============================================================
 
 resource "aws_cloudwatch_event_rule" "ec2_stopped" {
-  name        = "UAT-EC2-Stopped"
-  description = "Detect monitored EC2 instances entering stopped state"
+  for_each = local.ec2_monitor_instances
+
+  name        = "UAT-${each.key}-EC2-Stopped"
+  description = "Detect ${each.value} entering stopped state"
 
   event_pattern = jsonencode({
     source        = ["aws.ec2"]
@@ -236,13 +238,15 @@ resource "aws_cloudwatch_event_rule" "ec2_stopped" {
 
     detail = {
       state         = ["stopped"]
-      "instance-id" = local.ec2_monitor_instance_ids
+      "instance-id" = [one(data.aws_instances.monitored[each.key].ids)]
     }
   })
 }
 
 resource "aws_cloudwatch_event_target" "ec2_stopped_sns" {
-  rule      = aws_cloudwatch_event_rule.ec2_stopped.name
+  for_each = local.ec2_monitor_instances
+
+  rule      = aws_cloudwatch_event_rule.ec2_stopped[each.key].name
   target_id = "EC2StoppedSNS"
   arn       = aws_sns_topic.lambda_alerts.arn
 
@@ -254,8 +258,10 @@ resource "aws_cloudwatch_event_target" "ec2_stopped_sns" {
       region      = "$.region"
     }
 
-    input_template = jsonencode(
-      "CRITICAL - EC2 STOPPED\nEnvironment: UAT\nInstance ID: <instance_id>\nState: <state>\nRegion: <region>\nTime (UTC): <time>"
+    input_template = format(
+      "\"[CRITICAL] EC2 STOPPED || Environment: %s || Instance Name: %s || Instance ID: <instance_id> || State: <state> || Region: <region> || Time (UTC): <time>\"",
+      var.TFC_stage,
+      each.value
     )
   }
 }
@@ -265,8 +271,10 @@ resource "aws_cloudwatch_event_target" "ec2_stopped_sns" {
 # ============================================================
 
 resource "aws_cloudwatch_event_rule" "ec2_running" {
-  name        = "UAT-EC2-Running"
-  description = "Detect monitored EC2 instances entering running state"
+  for_each = local.ec2_monitor_instances
+
+  name        = "UAT-${each.key}-EC2-Running"
+  description = "Detect ${each.value} entering running state"
 
   event_pattern = jsonencode({
     source        = ["aws.ec2"]
@@ -274,13 +282,15 @@ resource "aws_cloudwatch_event_rule" "ec2_running" {
 
     detail = {
       state         = ["running"]
-      "instance-id" = local.ec2_monitor_instance_ids
+      "instance-id" = [one(data.aws_instances.monitored[each.key].ids)]
     }
   })
 }
 
 resource "aws_cloudwatch_event_target" "ec2_running_sns" {
-  rule      = aws_cloudwatch_event_rule.ec2_running.name
+  for_each = local.ec2_monitor_instances
+
+  rule      = aws_cloudwatch_event_rule.ec2_running[each.key].name
   target_id = "EC2RunningSNS"
   arn       = aws_sns_topic.lambda_alerts.arn
 
@@ -292,8 +302,10 @@ resource "aws_cloudwatch_event_target" "ec2_running_sns" {
       region      = "$.region"
     }
 
-    input_template = jsonencode(
-      "RECOVERY - EC2 RUNNING\nEnvironment: UAT\nInstance ID: <instance_id>\nState: <state>\nRegion: <region>\nTime (UTC): <time>"
+    input_template = format(
+      "\"[RECOVERY] EC2 RUNNING || Environment: %s || Instance Name: %s || Instance ID: <instance_id> || State: <state> || Region: <region> || Time (UTC): <time>\"",
+      var.TFC_stage,
+      each.value
     )
   }
 }
