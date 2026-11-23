@@ -1,9 +1,27 @@
+# EC2 INSTANCES TO MONITOR
+# Identify instances using their AWS Name tag
+
+
 locals {
   ec2_monitor_instances = {
-    server01 = "i-11111111111111111"
-    # server02 = "i-22222222222222222"
-    # server03 = "i-33333333333333333"
+    server01 = "xxxxxxxxx"
+    # server02 = "xxxxxxxxxxx"
+    # server03 = "xxxxxxxxxx"
   }
+}
+
+
+# RESOLVE EC2 INSTANCE IDS FROM AWS NAME TAGS
+
+
+data "aws_instances" "monitored" {
+  for_each = local.ec2_monitor_instances
+
+  instance_tags = {
+    Name = each.value
+  }
+
+  instance_state_names = ["pending", "running", "stopping", "stopped"]
 }
 
 # ============================================================
@@ -26,7 +44,7 @@ resource "aws_cloudwatch_metric_alarm" "ec2_cpu_high" {
   treat_missing_data  = "missing"
 
   dimensions = {
-    InstanceId = each.value
+    InstanceId = one(data.aws_instances.monitored[each.key].ids)
   }
 
   alarm_actions = [aws_sns_topic.lambda_alerts.arn]
@@ -53,7 +71,7 @@ resource "aws_cloudwatch_metric_alarm" "ec2_memory_high" {
   treat_missing_data  = "missing"
 
   dimensions = {
-    InstanceId = each.value
+    InstanceId = one(data.aws_instances.monitored[each.key].ids)
   }
 
   alarm_actions = [aws_sns_topic.lambda_alerts.arn]
@@ -80,7 +98,7 @@ resource "aws_cloudwatch_metric_alarm" "ec2_disk_high" {
   treat_missing_data  = "missing"
 
   dimensions = {
-    InstanceId = each.value
+    InstanceId = one(data.aws_instances.monitored[each.key].ids)
   }
 
   alarm_actions = [aws_sns_topic.lambda_alerts.arn]
@@ -107,7 +125,7 @@ resource "aws_cloudwatch_metric_alarm" "ec2_status_failed" {
   treat_missing_data  = "missing"
 
   dimensions = {
-    InstanceId = each.value
+    InstanceId = one(data.aws_instances.monitored[each.key].ids)
   }
 
   alarm_actions = [aws_sns_topic.lambda_alerts.arn]
